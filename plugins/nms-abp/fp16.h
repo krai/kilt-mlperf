@@ -26,16 +26,16 @@
 #ifndef FP16_FP16_H
 #define FP16_FP16_H
 #if defined(__cplusplus) && (__cplusplus >= 201103L)
-#include <cstdint>
 #include <cmath>
+#include <cstdint>
 #elif !defined(__OPENCL_VERSION__)
-#include <stdint.h>
 #include <math.h>
+#include <stdint.h>
 #endif
 #ifdef _MSC_VER
 #include <intrin.h>
 #endif
-#include <bitcasts.h>
+#include "bitcasts.h"
 /*
  * Convert a 16-bit floating-point number in IEEE half-precision format, in bit
  *representation, to

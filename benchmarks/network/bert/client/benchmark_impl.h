@@ -10,8 +10,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -22,7 +22,6 @@
 // SOFTWARE.POSSIBILITY OF SUCH DAMAGE.
 //
 
-
 #ifndef BENCHMARK_IMPL_H
 #define BENCHMARK_IMPL_H
 
@@ -31,8 +30,8 @@
 #include "system_under_test.h"
 #include "test_settings.h"
 
+#include "config/benchmark_config.h"
 #include "datasource.h"
-#include "benchmark_config.h"
 
 #include <arpa/inet.h>
 #include <stdio.h>
@@ -183,7 +182,7 @@ public:
       std::vector<mlperf::QuerySampleResponse> responses;
 
       responses.push_back(
-          { buffer, uintptr_t(response_data), sizeof(float) * 384 * 2 });
+          {buffer, uintptr_t(response_data), sizeof(float) * 384 * 2});
 
       mlperf::QuerySamplesComplete(responses.data(), responses.size());
       if (ncc.getVerbosityLevel())

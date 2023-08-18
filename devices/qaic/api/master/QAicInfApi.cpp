@@ -32,16 +32,15 @@
 
 #include "QAicInfApi.h"
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <fstream>
-#include <dlfcn.h>
 #include <dirent.h>
-#include <iostream>
+#include <dlfcn.h>
 #include <fstream>
 #include <google/protobuf/util/json_util.h>
+#include <iostream>
+#include <stdio.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 namespace qaic_api {
 
 const uint32_t setSizeDefault = 10;
@@ -65,7 +64,7 @@ public:
   QStatus init(uint32_t setSize = setSizeDefault);
   QBuffer *getDmaBuffers(uint32_t execOjbIndex);
   QStatus reset();
-  QStatus setData(std::vector<std::vector<QBuffer> > &buffers);
+  QStatus setData(std::vector<std::vector<QBuffer>> &buffers);
   QStatus setDataSingle(int set_idx, std::vector<QBuffer> &buffers);
   QStatus run(uint32_t numInferences, void *payload);
   QStatus deinit();
@@ -181,7 +180,7 @@ QStatus ActivationSet::init(uint32_t setSize) {
   return QS_SUCCESS;
 }
 
-QStatus ActivationSet::setData(std::vector<std::vector<QBuffer> > &buffers) {
+QStatus ActivationSet::setData(std::vector<std::vector<QBuffer>> &buffers) {
   QStatus status = QS_SUCCESS;
   int i = 0;
   if (ppp_enable_) {
@@ -250,8 +249,8 @@ QAicInfApi::QAicInfApi()
     : context_(nullptr), constants_(nullptr),
       contextProperties_(QAIC_CONTEXT_DEFAULT),
       execObjProperties_(QAIC_EXECOBJ_PROPERTIES_DEFAULT),
-      queueProperties_{ QAIC_QUEUE_PROPERTIES_ENABLE_MULTI_THREADED_QUEUES,
-                        numThreadsPerQueueDefault },
+      queueProperties_{QAIC_QUEUE_PROPERTIES_ENABLE_MULTI_THREADED_QUEUES,
+                       numThreadsPerQueueDefault},
       dev_(0), numActivations_(numActivationsDefault),
       numInferences_(numInferencesDefault),
       numThreadsPerQueue_(numThreadsPerQueueDefault), setSize_(setSizeDefault),
@@ -305,7 +304,7 @@ void QAicInfApi::setSkipStage(std::string qaic_skip_stage) {
 QStatus
 QAicInfApi::loadFileType(const std::string &filePath, size_t &sizeLoaded,
                          uint8_t *&dataPtr,
-                         std::vector<std::unique_ptr<uint8_t[]> > &vector) {
+                         std::vector<std::unique_ptr<uint8_t[]>> &vector) {
   uint64_t fileSize;
   std::ifstream infile;
   infile.open(filePath, std::ios::binary | std::ios::in);
@@ -378,7 +377,7 @@ QStatus QAicInfApi::init(QID qid, QAicEventCallback callback,
   }
 
   status = qaicCreateContext(&context_, &contextProperties_, 1, &dev_,
-                             logCallback, errorHandler, nullptr);
+                             logCallback, nullptr, errorHandler, nullptr);
   if ((context_ == nullptr) || (status != QS_SUCCESS)) {
     std::cerr << "Failed to Create Context" << std::endl;
     return status;
@@ -388,7 +387,7 @@ QStatus QAicInfApi::init(QID qid, QAicEventCallback callback,
 
     QBuffer programQpcBuf_;
     QAicProgramProperties_t programProperties_;
-    std::vector<std::unique_ptr<uint8_t[]> > programBufferVector_;
+    std::vector<std::unique_ptr<uint8_t[]>> programBufferVector_;
     QAicQpcObj *qpcObj_;
 
     std::string filePath = modelBasePaths_[i] + "/programqpc.bin";
@@ -502,8 +501,7 @@ QStatus QAicInfApi::init(QID qid, QAicEventCallback callback,
 
       try {
         customizedIoDescProtoBuffer_.resize(ioDescProto.ByteSizeLong());
-      }
-      catch (const std::bad_alloc &e) {
+      } catch (const std::bad_alloc &e) {
         std::cerr << "vector resize failed for protocol Buffer -" << e.what()
                   << std::endl;
         return QS_ERROR;
@@ -741,4 +739,4 @@ QStatus QAicInfApi::setBufferPtr(uint32_t act_idx, uint32_t set_idx,
 
   return status;
 }
-}
+} // namespace qaic_api

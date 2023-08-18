@@ -10,8 +10,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -22,17 +22,19 @@
 // SOFTWARE.POSSIBILITY OF SUCH DAMAGE.
 //
 
+#ifndef SERVER_CONFIG_H
+#define SERVER_CONFIG_H
 
-#ifndef SERVER_CONFIG_FROM_ENV_H
-#define SERVER_CONFIG_FROM_ENV_H
+#include <sstream>
 
-#include "config_tools.h"
-#include "iconfig.h"
+#include "config/config_tools/config_tools.h"
+
 #include "affinity.h"
+#include "iconfig.h"
 
 namespace KRAI {
 
-class ServerConfigFromEnv : public IServerConfig {
+class ServerConfig : public IServerConfig {
 
 public:
   // Server settings
@@ -61,7 +63,7 @@ public:
 
   virtual const int getDispatchYieldTime() { return dispatch_yield_time; }
 
-  ServerConfigFromEnv() {
+  ServerConfig() {
 
     std::stringstream ss_ids(qaic_hw_ids_str);
     while (ss_ids.good()) {
@@ -163,45 +165,45 @@ public:
   }
 
 private:
-  const int verbosity_level = getenv_i("CK_VERBOSE");
+  const int verbosity_level = getconfig_i("KILT_VERBOSE");
 
-  const int verbosity_server = alter_str_i(getenv_c("CK_VERBOSE_SERVER"), 0);
+  const int verbosity_server =
+      alter_str_i(getconfig_c("KILT_VERBOSE_SERVER"), 0);
 
-  const int qaic_batch_size = getenv_i("CK_ENV_QAIC_MODEL_BATCH_SIZE");
+  const int qaic_batch_size = getconfig_i("KILT_MODEL_BATCH_SIZE");
 
-  const int max_wait =
-      alter_str_i(getenv_c("CK_ENV_QAIC_MAX_WAIT_ABS"), 100000);
+  const int max_wait = alter_str_i(getconfig_c("KILT_MAX_WAIT_ABS"), 100000);
 
   const int scheduler_yield_time =
-      alter_str_i(getenv_c("KILT_SCHEDULER_YIELD_TIME"), 10);
+      alter_str_i(getconfig_c("KILT_SCHEDULER_YIELD_TIME"), 10);
 
   const int dispatch_yield_time =
-      alter_str_i(getenv_c("KILT_DISPATCH_YIELD_TIME"), -1);
+      alter_str_i(getconfig_c("KILT_DISPATCH_YIELD_TIME"), -1);
 
   //   // choice of hardware
   std::string qaic_hw_ids_str =
-      alter_str(getenv_c("CK_ENV_QAIC_DEVICE_IDS"), std::string("0"));
+      alter_str(getconfig_c("KILT_DEVICE_IDS"), std::string("0"));
 
   std::string qaic_hw_config_str =
-      alter_str(getenv_c("CK_ENV_QAIC_DEVICE_CONFIG"), std::string(""));
+      alter_str(getconfig_c("KILT_DEVICE_CONFIG"), std::string(""));
 
   std::string qaic_datasource_config_str =
-      alter_str(getenv_c("CK_ENV_QAIC_DATASOURCE_CONFIG"), std::string(""));
+      alter_str(getconfig_c("KILT_DATASOURCE_CONFIG"), std::string(""));
 
-  std::string unique_server_id = alter_str(getenv_c("CK_ENV_UNIQUE_SERVER_ID"),
-                                           std::string("KILT_SERVER"));
+  std::string unique_server_id = alter_str(
+      getconfig_c("KILT_NETWORK_UNIQUE_SERVER_ID"), std::string("KILT_SERVER"));
 
   std::vector<int> qaic_hw_ids;
 
   int qaic_device_count;
   int qaic_datasource_count;
 
-  std::vector<std::vector<int> > qaic_hw_affinities;
-  std::vector<std::vector<int> > qaic_datasource_affinities;
+  std::vector<std::vector<int>> qaic_hw_affinities;
+  std::vector<std::vector<int>> qaic_datasource_affinities;
   std::vector<int> qaic_hw_datasource_for_device;
 };
 
-IServerConfig *getServerConfig() { return new ServerConfigFromEnv(); }
+IServerConfig *getServerConfig() { return new ServerConfig(); }
 
 }; // namespace KRAI
 #endif

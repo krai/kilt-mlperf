@@ -10,8 +10,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -22,16 +22,15 @@
 // SOFTWARE.POSSIBILITY OF SUCH DAMAGE.
 //
 
+#ifndef DEVICE_CONFIG_H
+#define DEVICE_CONFIG_H
 
-#ifndef DEVICE_CONFIG_FROM_ENV_H
-#define DEVICE_CONFIG_FROM_ENV_H
-
-#include "config_tools.h"
+#include "config/config_tools/config_tools.h"
 #include "iconfig.h"
 
 namespace KRAI {
 
-class QAicDeviceConfigFromEnv : public IDeviceConfig {
+class QAicDeviceConfig : public IDeviceConfig {
 
 public:
   // Per device config
@@ -40,9 +39,6 @@ public:
   virtual const int getNumThreadsPerQueue() const {
     return qaic_threads_per_queue;
   }
-  virtual const int getInputCount() const { return qaic_input_count; }
-  virtual const int getOutputCount() const { return qaic_output_count; }
-  virtual const int getBatchSize() const { return qaic_batch_size; }
   virtual const int getInputSelect() const { return qaic_input_select; }
   virtual const std::string getSkipStage() const { return qaic_skip_stage; }
   virtual const std::string getModelRoot() const { return qaic_model_root; }
@@ -55,44 +51,43 @@ public:
   virtual const int getSchedulerYieldTime() { return scheduler_yield_time; }
   virtual const int getEnqueueYieldTime() { return enqueue_yield_time; }
 
+  virtual const bool getLoopback() const { return qaic_loopback; }
+
 private:
-  const char *qaic_model_root = getenv_c("CK_ENV_QAIC_MODEL_ROOT");
+  const char *qaic_model_root = getconfig_c("KILT_MODEL_ROOT");
 
   const int qaic_activation_count =
-      alter_str_i(getenv_c("CK_ENV_QAIC_ACTIVATION_COUNT"), 1);
+      alter_str_i(getconfig_c("KILT_DEVICE_QAIC_ACTIVATION_COUNT"), 1);
 
   const int qaic_set_size =
-      alter_str_i(getenv_c("CK_ENV_QAIC_QUEUE_LENGTH"), 4);
+      alter_str_i(getconfig_c("KILT_DEVICE_QAIC_QUEUE_LENGTH"), 4);
 
   const int qaic_threads_per_queue =
-      alter_str_i(getenv_c("CK_ENV_QAIC_THREADS_PER_QUEUE"), 4);
-
-  const int qaic_input_count = getenv_i("CK_ENV_QAIC_INPUT_COUNT");
-
-  const int qaic_output_count = getenv_i("CK_ENV_QAIC_OUTPUT_COUNT");
-
-  const int qaic_batch_size = getenv_i("CK_ENV_QAIC_MODEL_BATCH_SIZE");
+      alter_str_i(getconfig_c("KILT_DEVICE_QAIC_THREADS_PER_QUEUE"), 4);
 
   std::string qaic_skip_stage =
-      alter_str(getenv_c("CK_ENV_QAIC_SKIP_STAGE"), std::string(""));
+      alter_str(getconfig_c("KILT_DEVICE_QAIC_SKIP_STAGE"), std::string(""));
 
   const int qaic_input_select =
-      alter_str_i(getenv_c("CK_ENV_QAIC_INPUT_SELECT"), 0);
+      alter_str_i(getconfig_c("KILT_DEVICE_QAIC_INPUT_SELECT"), 0);
 
   const int samples_queue_depth =
-      alter_str_i(getenv_c("KILT_DEVICE_QAIC_SAMPLES_QUEUE_DEPTH"), 8);
+      alter_str_i(getconfig_c("KILT_DEVICE_QAIC_SAMPLES_QUEUE_DEPTH"), 8);
 
   const bool qaic_ringfence_driver =
-      getenv_opt_b(std::string("KILT_DEVICE_QAIC_RINGFENCE_DRIVER"), true);
+      getconfig_opt_b(std::string("KILT_DEVICE_QAIC_RINGFENCE_DRIVER"), true);
 
   const int scheduler_yield_time =
-      alter_str_i(getenv_c("KILT_DEVICE_SCHEDULER_YIELD_TIME"), -1);
+      alter_str_i(getconfig_c("KILT_DEVICE_QAIC_SCHEDULER_YIELD_TIME"), -1);
 
   const int enqueue_yield_time =
-      alter_str_i(getenv_c("KILT_DEVICE_ENQUEUE_YIELD_TIME"), -1);
+      alter_str_i(getconfig_c("KILT_DEVICE_QAIC_ENQUEUE_YIELD_TIME"), -1);
+
+  const bool qaic_loopback =
+      getconfig_opt_b(std::string("KILT_DEVICE_QAIC_LOOPBACK"), false);
 };
 
-IDeviceConfig *getDeviceConfig() { return new QAicDeviceConfigFromEnv(); }
+IDeviceConfig *getDeviceConfig() { return new QAicDeviceConfig(); }
 
 }; // namespace KRAI
 #endif

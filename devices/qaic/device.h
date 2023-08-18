@@ -10,8 +10,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -22,16 +22,15 @@
 // SOFTWARE.POSSIBILITY OF SUCH DAMAGE.
 //
 
-
 #ifndef DEVICE_H
 #define DEVICE_H
 
 #include <queue>
 
-#include "QAicInfApi.h"
-#include "imodel.h"
+#include "api/master/QAicInfApi.h"
+#include "config/device_config.h"
 #include "idatasource.h"
-#include "idevice.h"
+#include "imodel.h"
 
 //#define NO_QAIC
 //#define ENQUEUE_SHIM_THREADED
@@ -123,6 +122,44 @@ typedef void (*DeviceExec)(void *data);
 template <typename Sample> class Device : public IDevice<Sample> {
 
 public:
+  void Construct(IModel *_model, IDataSource *_data_source, IConfig *_config,
+                 int hw_id, std::vector<int> aff) {
+
+    QAicDeviceConfig *device_cfg =
+        static_cast<QAicDeviceConfig *>(_config->device_cfg);
+
+    cpu_set_t cpu_affinity;
+
+    std::vector<int> aff_cpy = aff;
+    int device_threads = 0;
+
+    if (device_cfg->ringfenceDeviceDriver()) {
+      device_threads = 1;
+    }
+
+    std::cout << "Driver threads: ";
+    CPU_ZERO(&cpu_affinity);
+    for (int a = aff.size(); a > device_threads; a--) {
+      CPU_SET(aff.back(), &cpu_affinity);
+      std::cout << " " << aff.back();
+      aff.pop_back();
+    }
+    std::cout << std::endl;
+
+    if (!device_cfg->ringfenceDeviceDriver()) {
+      aff = aff_cpy;
+    }
+
+    mtx_init.lock();
+    std::thread tin(&Device::DeviceInitMutex, this, _model, _data_source,
+                    _config, hw_id, &aff);
+    pthread_setaffinity_np(tin.native_handle(), sizeof(cpu_set_t),
+                           &cpu_affinity);
+    mtx_init.unlock();
+
+    tin.join();
+  }
+
   virtual int Inference(std::vector<Sample> samples) {
 
     if (sback >= sfront + samples_queue_depth)
@@ -154,54 +191,59 @@ public:
 
 private:
   virtual void DeviceInit(IModel *_model, IDataSource *_data_source,
-                          IDeviceConfig *_config, int hw_id,
-                          std::vector<int> *aff) {
+                          IConfig *_config, int hw_id, std::vector<int> *aff) {
 
     scheduler_terminate = false;
 
     model = _model;
     data_source = _data_source;
-    config = _config;
 
-    samples_queue_depth = _config->getSamplesQueueDepth();
+    device_cfg = static_cast<QAicDeviceConfig *>(_config->device_cfg);
 
-    scheduler_yield_time = _config->getSchedulerYieldTime();
-    enqueue_yield_time = _config->getEnqueueYieldTime();
+    model_cfg = static_cast<IModelConfig *>(_config->model_cfg);
+
+    samples_queue_depth = device_cfg->getSamplesQueueDepth();
+
+    scheduler_yield_time = device_cfg->getSchedulerYieldTime();
+    enqueue_yield_time = device_cfg->getEnqueueYieldTime();
+
+    loop_back = device_cfg->getLoopback();
 
 #ifndef NO_QAIC
 
     std::cout << "Creating device " << hw_id << std::endl;
     runner = new QAicInfApi();
 
-    runner->setModelBasePath(config->getModelRoot());
-    runner->setNumActivations(config->getActivationCount());
-    runner->setSetSize(config->getSetSize());
-    runner->setNumThreadsPerQueue(config->getNumThreadsPerQueue());
-    runner->setSkipStage(config->getSkipStage());
+    runner->setModelBasePath(device_cfg->getModelRoot());
+    runner->setNumActivations(device_cfg->getActivationCount());
+    runner->setSetSize(device_cfg->getSetSize());
+    runner->setNumThreadsPerQueue(device_cfg->getNumThreadsPerQueue());
+    runner->setSkipStage(device_cfg->getSkipStage());
 
     QStatus status = runner->init(hw_id, PostResults);
 
     if (status != QS_SUCCESS)
       throw "Failed to invoke qaic";
 
-    buffers_in.resize(config->getActivationCount());
-    buffers_out.resize(config->getActivationCount());
+    buffers_in.resize(device_cfg->getActivationCount());
+    buffers_out.resize(device_cfg->getActivationCount());
 
-    std::cout << "Model input count: " << config->getInputCount() << std::endl;
-    std::cout << "Model output count: " << config->getOutputCount()
+    std::cout << "Model input count: " << model_cfg->getInputCount()
+              << std::endl;
+    std::cout << "Model output count: " << model_cfg->getOutputCount()
               << std::endl;
 
     // get references to all the buffers
-    for (int a = 0; a < config->getActivationCount(); ++a) {
-      buffers_in[a].resize(config->getSetSize());
-      buffers_out[a].resize(config->getSetSize());
-      for (int s = 0; s < config->getSetSize(); ++s) {
-        for (int i = 0; i < config->getInputCount(); ++i) {
+    for (int a = 0; a < device_cfg->getActivationCount(); ++a) {
+      buffers_in[a].resize(device_cfg->getSetSize());
+      buffers_out[a].resize(device_cfg->getSetSize());
+      for (int s = 0; s < device_cfg->getSetSize(); ++s) {
+        for (int i = 0; i < model_cfg->getInputCount(); ++i) {
           buffers_in[a][s].push_back((void *)runner->getBufferPtr(a, s, i));
         }
-        for (int o = 0; o < config->getOutputCount(); ++o) {
-          buffers_out[a][s].push_back(
-              (void *)runner->getBufferPtr(a, s, o + config->getInputCount()));
+        for (int o = 0; o < model_cfg->getOutputCount(); ++o) {
+          buffers_out[a][s].push_back((void *)runner->getBufferPtr(
+              a, s, o + model_cfg->getInputCount()));
         }
       }
     }
@@ -211,11 +253,12 @@ private:
 #endif
 
     // create enough ring buffers for each activation
-    ring_buf.resize(config->getActivationCount());
+    ring_buf.resize(device_cfg->getActivationCount());
 
     // populate ring buffer
-    for (int a = 0; a < config->getActivationCount(); ++a)
-      ring_buf[a] = new RingBuffer<Sample>(0, a, config->getSetSize(), this);
+    for (int a = 0; a < device_cfg->getActivationCount(); ++a)
+      ring_buf[a] =
+          new RingBuffer<Sample>(0, a, device_cfg->getSetSize(), this);
 
     samples_queue.resize(samples_queue_depth);
     sfront = sback = 0;
@@ -278,10 +321,10 @@ private:
 
 #ifndef NO_QAIC
         // set the images
-        if (config->getInputSelect() == 0) {
+        if (device_cfg->getInputSelect() == 0) {
           model->configureWorkload(data_source, &(p->samples),
                                    buffers_in[p->activation][p->set]);
-        } else if (config->getInputSelect() == 1) {
+        } else if (device_cfg->getInputSelect() == 1) {
           assert(false);
           // TODO: We no longer support this as we're copying directly into the
           // buffer?
@@ -291,10 +334,14 @@ private:
           // Do nothing - random data
         }
 
-        // std::cout << "Issuing to hardware" << std::endl;
-        QStatus status = runner->run(p->activation, p->set, p);
-        if (status != QS_SUCCESS)
-          throw "Failed to invoke qaic";
+        if (loop_back) {
+          PostResults(NULL, QAIC_EVENT_DEVICE_COMPLETE, p);
+        } else {
+          // std::cout << "Issuing to hardware" << std::endl;
+          QStatus status = runner->run(p->activation, p->set, p);
+          if (status != QS_SUCCESS)
+            throw "Failed to invoke qaic";
+        }
 #else
         PostResults(NULL, QAIC_EVENT_DEVICE_COMPLETE, p);
 #endif
@@ -314,7 +361,7 @@ private:
     // current activation index
     int activation = -1;
 
-    std::vector<Sample> qs(config->getBatchSize());
+    std::vector<Sample> qs(model_cfg->getBatchSize());
 
     while (!scheduler_terminate) { // loop forever waiting for input
       // std::cout << "Scheduler " << sched_getcpu() << std::endl;
@@ -337,7 +384,7 @@ private:
 
       while (!scheduler_terminate) {
 
-        activation = (activation + 1) % config->getActivationCount();
+        activation = (activation + 1) % device_cfg->getActivationCount();
 
         Payload<Sample> *p = ring_buf[activation]->getPayload();
 
@@ -396,13 +443,24 @@ private:
     }
   }
 
+  virtual void DeviceInitMutex(IModel *_model, IDataSource *_data_source,
+                               IConfig *_config, int hw_id,
+                               std::vector<int> *aff) {
+
+    mtx_init.lock();
+    DeviceInit(_model, _data_source, _config, hw_id, aff);
+    mtx_init.unlock();
+  }
+
+  std::mutex mtx_init;
+
   cpu_set_t cpu_affinity;
 
   QAicInfApi *runner;
 
   std::vector<RingBuffer<Sample> *> ring_buf;
 
-  std::vector<std::vector<Sample> > samples_queue;
+  std::vector<std::vector<Sample>> samples_queue;
   std::atomic<int> sfront, sback;
   int samples_queue_depth;
 
@@ -417,28 +475,31 @@ private:
   bool shim_terminate;
   std::atomic<bool> scheduler_terminate;
 
-  IDeviceConfig *config;
+  QAicDeviceConfig *device_cfg;
+  IModelConfig *model_cfg;
 
   std::mutex mtx_results;
 
   // activations, set, input buffers
-  std::vector<std::vector<std::vector<void *> > > buffers_in;
+  std::vector<std::vector<std::vector<void *>>> buffers_in;
 
   // activation, set, output buffers
-  std::vector<std::vector<std::vector<void *> > > buffers_out;
+  std::vector<std::vector<std::vector<void *>>> buffers_out;
 
   IModel *model;
   IDataSource *data_source;
 
   int scheduler_yield_time;
   int enqueue_yield_time;
+
+  bool loop_back;
 };
 
 template <typename Sample>
 IDevice<Sample> *createDevice(IModel *_model, IDataSource *_data_source,
-                              IDeviceConfig *_config, int hw_id,
+                              IConfig *_config, int hw_id,
                               std::vector<int> aff) {
-  IDevice<Sample> *d = new Device<Sample>();
+  Device<Sample> *d = new Device<Sample>();
   d->Construct(_model, _data_source, _config, hw_id, aff);
   return d;
 }

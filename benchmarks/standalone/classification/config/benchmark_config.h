@@ -10,8 +10,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -22,7 +22,6 @@
 // SOFTWARE.POSSIBILITY OF SUCH DAMAGE.
 //
 
-
 #ifndef BENCHMARK_CONFIG_H
 #define BENCHMARK_CONFIG_H
 
@@ -31,7 +30,7 @@
 #include <fstream>
 #include <sstream>
 
-#include "config_tools.h"
+#include "config/config_tools/config_tools.h"
 #include "iconfig.h"
 
 namespace KRAI {
@@ -41,26 +40,23 @@ namespace KRAI {
 class ClassificationDataSourceConfig : public IDataSourceConfig {
 
 public:
-  virtual const int getImageSize() const {
-    return image_size;
-  };
-  virtual const int getNumChannels() const {
-    return num_channels;
-  };
+  virtual const int getImageSize() const { return image_size; }
+
+  virtual const int getNumChannels() const { return num_channels; }
+
   virtual const bool getHasBackgroundClass() const {
     return has_background_class;
-  };
+  }
 
   virtual const std::vector<std::string> &getListOfImageFilenames() const {
     return _available_image_list;
-  };
-  virtual const std::string &getDatasetDir() const {
-    return images_dir;
-  };
+  }
+
+  virtual const std::string &getDatasetDir() const { return images_dir; }
 
   virtual const int getMaxImagesInMemory() const {
     return images_in_memory_max;
-  };
+  }
 
   ClassificationDataSourceConfig() {
 
@@ -76,20 +72,20 @@ public:
 
 private:
   const int image_size =
-      getenv_i("CK_ENV_DATASET_IMAGENET_PREPROCESSED_INPUT_SQUARE_SIDE");
+      getconfig_i("KILT_DATASET_IMAGENET_PREPROCESSED_INPUT_SQUARE_SIDE");
 
   const int num_channels = 3;
 
   const bool has_background_class =
-      getenv_s("ML_MODEL_HAS_BACKGROUND_CLASS") == "YES";
+      getconfig_s("KILT_DATASET_IMAGENET_HAS_BACKGROUND_CLASS") == "YES";
 
   const std::string available_images_file =
-      getenv_s("CK_ENV_DATASET_IMAGENET_PREPROCESSED_SUBSET_FOF");
+      getconfig_s("KILT_DATASET_IMAGENET_PREPROCESSED_SUBSET_FOF");
 
   const std::string images_dir =
-      getenv_s("CK_ENV_DATASET_IMAGENET_PREPROCESSED_DIR");
+      getconfig_s("KILT_DATASET_IMAGENET_PREPROCESSED_DIR");
 
-  const int images_in_memory_max = getenv_i("CK_LOADGEN_BUFFER_SIZE");
+  const int images_in_memory_max = getconfig_i("LOADGEN_BUFFER_SIZE");
 
   std::vector<std::string> _available_image_list;
 };
@@ -98,12 +94,7 @@ IDataSourceConfig *getDataSourceConfig() {
   return new ClassificationDataSourceConfig();
 };
 
-class ModelConfig : public IModelConfig {
-public:
-  virtual ~ModelConfig() {};
-};
-
-IModelConfig *getModelConfig() { return new ModelConfig(); }
+IModelConfig *getModelConfig() { return new IModelConfig(); }
 
 }; // namespace KRAI
 

@@ -10,8 +10,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -21,7 +21,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.POSSIBILITY OF SUCH DAMAGE.
 //
-
 
 #include <algorithm>
 #include <iostream>
@@ -41,7 +40,7 @@ void add_pack(std::vector<int> &pack, int count, Lookup &tmp, Lookup &complete,
 }
 
 void histify(const std::vector<SizedSample> &samples,
-             std::vector<std::vector<SizedSample> > &histogram) {
+             std::vector<std::vector<SizedSample>> &histogram) {
 
   for (int i = 0; i < samples.size(); ++i) {
     histogram[samples[i].second - 1].push_back(samples[i]);
@@ -49,8 +48,8 @@ void histify(const std::vector<SizedSample> &samples,
 }
 
 void pack_samples(Lookup &lookup,
-                  std::vector<std::vector<SizedSample> > &histogram,
-                  std::vector<std::vector<SizedSample> > &packed_samples) {
+                  std::vector<std::vector<SizedSample>> &histogram,
+                  std::vector<std::vector<SizedSample>> &packed_samples) {
 
   for (auto lit = lookup.begin(); lit != lookup.end(); lit++) {
     for (auto git = lit->second.begin(); git != lit->second.end(); git++) {
@@ -78,9 +77,9 @@ void pack_samples(Lookup &lookup,
 
 void pack(const std::vector<SizedSample> &samples, int max_seq_len,
           int max_seq_per_pack,
-          std::vector<std::vector<SizedSample> > &packed_samples) {
+          std::vector<std::vector<SizedSample>> &packed_samples) {
 
-  std::vector<std::vector<SizedSample> > histogram(max_seq_len);
+  std::vector<std::vector<SizedSample>> histogram(max_seq_len);
 
   histify(samples, histogram);
 
@@ -94,15 +93,15 @@ void pack(const std::vector<SizedSample> &samples, int max_seq_len,
     while (n_sequences_to_bin > 0) {
       auto val = tmp_strategies_per_length.find(length_to_bin + offset);
       if (val != tmp_strategies_per_length.end()) {
-        auto[ n_sequences_to_pack, pack ] = val->second.back();
+        auto [n_sequences_to_pack, pack] = val->second.back();
         val->second.pop_back();
         auto new_pack = pack;
         new_pack.push_back(length_to_bin);
         auto count = std::min(n_sequences_to_pack, n_sequences_to_bin);
         if (n_sequences_to_pack > n_sequences_to_bin) {
           n_sequences_to_pack -= n_sequences_to_bin;
-          tmp_strategies_per_length[length_to_bin + offset]
-              .push_back(Entry(n_sequences_to_pack, pack));
+          tmp_strategies_per_length[length_to_bin + offset].push_back(
+              Entry(n_sequences_to_pack, pack));
           n_sequences_to_bin = 0;
         } else {
           n_sequences_to_bin -= n_sequences_to_pack;
@@ -116,7 +115,7 @@ void pack(const std::vector<SizedSample> &samples, int max_seq_len,
       }
 
       if (offset < 0) {
-        std::vector<int> vec({ length_to_bin });
+        std::vector<int> vec({length_to_bin});
         add_pack(vec, n_sequences_to_bin, tmp_strategies_per_length,
                  strategies_per_length, max_seq_per_pack, i);
         n_sequences_to_bin = 0;
@@ -126,10 +125,10 @@ void pack(const std::vector<SizedSample> &samples, int max_seq_len,
 
   for (auto lit = tmp_strategies_per_length.begin();
        lit != tmp_strategies_per_length.end(); lit++) {
-    strategies_per_length[lit->first]
-        .insert(strategies_per_length[lit->first].end(),
-                tmp_strategies_per_length[lit->first].begin(),
-                tmp_strategies_per_length[lit->first].end());
+    strategies_per_length[lit->first].insert(
+        strategies_per_length[lit->first].end(),
+        tmp_strategies_per_length[lit->first].begin(),
+        tmp_strategies_per_length[lit->first].end());
   }
 
   pack_samples(strategies_per_length, histogram, packed_samples);

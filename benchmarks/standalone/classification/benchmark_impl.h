@@ -10,8 +10,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -22,26 +22,23 @@
 // SOFTWARE.POSSIBILITY OF SUCH DAMAGE.
 //
 
-
 #ifndef BENCHMARK_IMPL_H
 #define BENCHMARK_IMPL_H
 
 #pragma once
 
+#include <stdexcept>
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "kilt_impl.h"
 #include "loadgen.h"
-#include "kilt.h"
-#include "device.h"
 
-#include "benchmark_config.h"
-#include "kilt_config.h"
-#include "device_config.h"
+#include "config/benchmark_config.h"
 
 #if defined(__amd64__) && defined(ENABLE_ZEN2)
-#include <immintrin.h>
 #include <cstdint>
+#include <immintrin.h>
 #endif
 
 #define DEBUG(msg) std::cout << "DEBUG: " << msg << std::endl;
@@ -77,7 +74,11 @@ public:
     std::ifstream file(path, std::ios::in | std::ios::binary);
     if (!file)
       throw "Failed to open image data " + path;
-    file.read(reinterpret_cast<char *>(this->_buffer), this->_size);
+    file.read(reinterpret_cast<char *>(this->_buffer),
+              this->_size * sizeof(TData));
+    if (!file)
+      std::cerr << "error: only " << file.gcount() << " could be read"
+                << std::endl;
     if (vl > 1) {
       std::cout << "Loaded file: " << path << std::endl;
     } else if (vl) {
@@ -86,7 +87,8 @@ public:
   }
 };
 
-template <typename TInputDataType> class ResNet50Model : public IModel {
+template <typename TInputDataType, typename TOutputDataType>
+class ResNet50Model : public IModel {
 public:
   ResNet50Model(const IConfig *config) : _config(config) {
     datasource_cfg =
@@ -145,11 +147,11 @@ public:
 
     for (int i = 0; i < s->size(); ++i) {
 
-      int64_t *ptr = (int64_t *)out_ptrs[0] + i;
+      TOutputDataType *ptr = (TOutputDataType *)out_ptrs[0] + i;
 
       encoding_buffer[i] = (float)*ptr - probe_offset;
       responses.push_back(
-          {(*s)[i].id, uintptr_t(&encoding_buffer[i]), sizeof(float) });
+          {(*s)[i].id, uintptr_t(&encoding_buffer[i]), sizeof(float)});
     }
     mlperf::QuerySamplesComplete(responses.data(), responses.size());
   };
@@ -162,13 +164,26 @@ private:
 
 IModel *modelConstruct(IConfig *config) {
 
-  if (config->device_cfg->getSkipStage() != "convert")
-    return new ResNet50Model<float>(config);
+  if (config->model_cfg->getInputDatatype(0) ==
+          IModelConfig::IO_TYPE::FLOAT32 &&
+      config->model_cfg->getOutputDatatype(0) == IModelConfig::IO_TYPE::FLOAT32)
+    return new ResNet50Model<float, float>(config);
+  else if (config->model_cfg->getInputDatatype(0) ==
+               IModelConfig::IO_TYPE::FLOAT32 &&
+           config->model_cfg->getOutputDatatype(0) ==
+               IModelConfig::IO_TYPE::INT64)
+    return new ResNet50Model<float, int64_t>(config);
+  else if (config->model_cfg->getInputDatatype(0) ==
+               IModelConfig::IO_TYPE::UINT8 &&
+           config->model_cfg->getOutputDatatype(0) ==
+               IModelConfig::IO_TYPE::INT64)
+    return new ResNet50Model<uint8_t, int64_t>(config);
   else
-    return new ResNet50Model<uint8_t>(config);
+    throw std::invalid_argument(
+        "Input/output types not supported when constructing model");
 }
 
-template <typename TInputDataType>
+template <typename TInputDataType, typename TOutputDataType>
 class ResNet50DataSource : public IDataSource {
 public:
   ResNet50DataSource(const IConfig *config, std::vector<int> &affinities)
@@ -216,8 +231,8 @@ public:
 
     unsigned length = _filenames_buffer.size();
     _current_buffer_size = length;
-    _in_batch = new std::unique_ptr<SampleData<TInputDataType> >[length];
-    unsigned batch_size = _config->device_cfg->getBatchSize();
+    _in_batch = new std::unique_ptr<SampleData<TInputDataType>>[length];
+    unsigned batch_size = _config->model_cfg->getBatchSize();
     unsigned image_size = datasource_cfg->getImageSize() *
                           datasource_cfg->getImageSize() *
                           datasource_cfg->getNumChannels();
@@ -225,8 +240,8 @@ public:
     for (auto i = 0; i < length; i += batch_size) {
       unsigned actual_batch_size =
           std::min(batch_size, batch_size < length ? (length - i) : length);
-      TInputDataType *buf =
-          (TInputDataType *)aligned_alloc(32, batch_size * image_size);
+      TInputDataType *buf = (TInputDataType *)aligned_alloc(
+          32, batch_size * image_size * sizeof(TInputDataType));
       for (auto j = 0; j < actual_batch_size; j++, buf += image_size) {
         _in_batch[i + j].reset(new SampleData<TInputDataType>(image_size, buf));
         std::string path =
@@ -238,7 +253,7 @@ public:
 
   void unloadSamples(void *user) override {
     unsigned num_examples = _filenames_buffer.size();
-    uint16_t batch_size = _config->device_cfg->getBatchSize();
+    uint16_t batch_size = _config->model_cfg->getBatchSize();
     for (size_t i = 0; i < num_examples; i += batch_size) {
       delete _in_batch[i].get();
     }
@@ -261,17 +276,30 @@ public:
 private:
   const IConfig *_config;
   std::vector<std::string> _filenames_buffer;
-  std::unique_ptr<SampleData<TInputDataType> > *_in_batch;
+  std::unique_ptr<SampleData<TInputDataType>> *_in_batch;
   ClassificationDataSourceConfig *datasource_cfg;
   int _current_buffer_size = 0;
 };
 
 IDataSource *dataSourceConstruct(IConfig *config, std::vector<int> affinities) {
 
-  if (config->device_cfg->getSkipStage() != "convert")
-    return new ResNet50DataSource<float>(config, affinities);
+  if (config->model_cfg->getInputDatatype(0) ==
+          IModelConfig::IO_TYPE::FLOAT32 &&
+      config->model_cfg->getOutputDatatype(0) == IModelConfig::IO_TYPE::FLOAT32)
+    return new ResNet50DataSource<float, float>(config, affinities);
+  else if (config->model_cfg->getInputDatatype(0) ==
+               IModelConfig::IO_TYPE::FLOAT32 &&
+           config->model_cfg->getOutputDatatype(0) ==
+               IModelConfig::IO_TYPE::INT64)
+    return new ResNet50DataSource<float, int64_t>(config, affinities);
+  else if (config->model_cfg->getInputDatatype(0) ==
+               IModelConfig::IO_TYPE::UINT8 &&
+           config->model_cfg->getOutputDatatype(0) ==
+               IModelConfig::IO_TYPE::INT64)
+    return new ResNet50DataSource<uint8_t, int64_t>(config, affinities);
   else
-    return new ResNet50DataSource<uint8_t>(config, affinities);
+    throw std::invalid_argument(
+        "Input/output types not supported when constructing datasource");
 }
 
 typedef KraiInferenceLibrary<mlperf::QuerySample> KILT;

@@ -10,8 +10,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -21,7 +21,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.POSSIBILITY OF SUCH DAMAGE.
 //
-
 
 #include <vector>
 
@@ -54,20 +53,19 @@ public:
   const int CLASS_THRESHOLD_UINT8 = 0; // fixme
   const int CLASS_THRESHOLD_FP16 = 10854;
   const float NMS_THRESHOLD = 0.5f;
-  const int MAX_DETECTIONS_PER_IMAGE = 600;
-  const int MAX_DETECTIONS_PER_CLASS = 100;
+  const int KILT_MODEL_NMS_MAX_DETECTIONS_PER_IMAGE = 600;
+  const int KILT_MODEL_NMS_MAX_DETECTIONS_PER_CLASS = 100;
 
   const char *priorName = "R34_priors.bin";
   const bool MAP_CLASSES = true;
   const bool PREPROCESS_PRIOR = false;
-  std::vector<float> variance = { 0.1, 0.2 };
+  std::vector<float> variance = {0.1, 0.2};
   std::vector<float> class_map = {
-    0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 13, 14, 15, 16, 17,
-    18, 19, 20, 21, 22, 23, 24, 25, 27, 28, 31, 32, 33, 34, 35, 36, 37,
-    38, 39, 40, 41, 42, 43, 44, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
-    56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 67, 70, 72, 73, 74, 75, 76,
-    77, 78, 79, 80, 81, 82, 84, 85, 86, 87, 88, 89, 90
-  };
+      0,  1,  2,  3,  4,  5,  6,  7,  8,  9,  10, 11, 13, 14, 15, 16, 17,
+      18, 19, 20, 21, 22, 23, 24, 25, 27, 28, 31, 32, 33, 34, 35, 36, 37,
+      38, 39, 40, 41, 42, 43, 44, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55,
+      56, 57, 58, 59, 60, 61, 62, 63, 64, 65, 67, 70, 72, 73, 74, 75, 76,
+      77, 78, 79, 80, 81, 82, 84, 85, 86, 87, 88, 89, 90};
 };
 
 class MV1_Params {
@@ -99,8 +97,8 @@ public:
   const int CLASS_THRESHOLD_UINT8 = 76;
   const int CLASS_THRESHOLD_FP16 = 0; // fixme
   const float NMS_THRESHOLD = 0.45f;
-  const int MAX_DETECTIONS_PER_IMAGE = 100;
-  const int MAX_DETECTIONS_PER_CLASS = 100;
+  const int KILT_MODEL_NMS_MAX_DETECTIONS_PER_IMAGE = 100;
+  const int KILT_MODEL_NMS_MAX_DETECTIONS_PER_CLASS = 100;
 
   const char *priorName = "MV1_priors.bin";
   const bool MAP_CLASSES = false;
@@ -125,15 +123,21 @@ public:
 
   const int OFFSET_CONF = 120087;
 
+#ifdef SDK_1_11_X
+  const int CLASSES_INDEX = 5;
+  const int BOXES_INDEX = 10;
+  const int TOPK_INDEX = 0;
+#else
   const int CLASSES_INDEX = 0;
   const int BOXES_INDEX = 5;
   const int TOPK_INDEX = 10;
+#endif
 
   const int CLASSES_OFFSET = 0;
 
   const int OUTPUT_LEVELS = 5;
   const int OUTPUT_BOXES_PER_LEVEL = 1000;
-  const int OUTPUT_DELTAS[5] = { 0, 90000, 22500, 5625, 1521 };
+  const int OUTPUT_DELTAS[5] = {0, 90000, 22500, 5625, 1521};
 
   const float LOC_OFFSET = 25.0f;
   const float LOC_SCALE = 0.01684683f;
@@ -144,8 +148,8 @@ public:
   const int CLASS_THRESHOLD_UINT8 = 5;
   const int CLASS_THRESHOLD_FP16 = 10854;
   const float NMS_THRESHOLD = 0.5f;
-  const int MAX_DETECTIONS_PER_IMAGE = 1000;
-  const int MAX_DETECTIONS_PER_CLASS = 1000;
+  const int KILT_MODEL_NMS_MAX_DETECTIONS_PER_IMAGE = 1000;
+  const int KILT_MODEL_NMS_MAX_DETECTIONS_PER_CLASS = 1000;
 
   //   const float BOX_SCALE = 0.00125f;
   const float BOX_SCALE = 800.0f;

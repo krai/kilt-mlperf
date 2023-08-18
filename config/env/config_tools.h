@@ -10,8 +10,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -22,11 +22,14 @@
 // SOFTWARE.POSSIBILITY OF SUCH DAMAGE.
 //
 
-
 #ifndef CONFIG_ENV_TOOLS_H
 #define CONFIG_ENV_TOOLS_H
 
-inline char *getenv_c(const char *s) { return getenv(s); }
+#include "kilt_translate.h"
+
+inline char *getenv_c(const char *s) {
+  return getenv(TranslationTable::getTranslation(s).c_str());
+}
 
 /// Load mandatory string value from the environment.
 inline std::string getenv_s(const std::string &name) {
@@ -88,9 +91,7 @@ inline std::string alter_str(std::string a, std::string b) {
 inline std::string alter_str(char *a, std::string b) {
   return a != nullptr ? a : b;
 };
-inline std::string alter_str(char *a, char *b) {
-  return a != nullptr ? a : b;
-};
+inline std::string alter_str(char *a, char *b) { return a != nullptr ? a : b; };
 inline int alter_str_i(char *a, int b) {
   return a != nullptr ? std::atoi(a) : b;
 };

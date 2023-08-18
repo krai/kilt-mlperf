@@ -35,20 +35,20 @@
 
 #include "QAicApi.h"
 #include "QAicApi.pb.h"
-#include <iostream>
-#include <iomanip>
 #include <algorithm>
-#include <getopt.h>
-#include <vector>
-#include <string.h>
+#include <array>
+#include <bitset>
 #include <cassert>
 #include <chrono>
-#include <memory>
-#include <thread>
-#include <array>
-#include <random>
 #include <future>
-#include <bitset>
+#include <getopt.h>
+#include <iomanip>
+#include <iostream>
+#include <memory>
+#include <random>
+#include <string.h>
+#include <thread>
+#include <vector>
 
 namespace qaic_api {
 
@@ -65,7 +65,7 @@ public:
   QAicInfApi();
 
   virtual ~QAicInfApi();
-  static void logCallback(QLogLevel logLevel, const char *str) {
+  static void logCallback(QLogLevel logLevel, const char *str, void *) {
     std::cout << str;
   }
 
@@ -107,7 +107,7 @@ public:
 private:
   QStatus loadFileType(const std::string &filePath, size_t &sizeLoaded,
                        uint8_t *&dataPtr,
-                       std::vector<std::unique_ptr<uint8_t[]> > &vector);
+                       std::vector<std::unique_ptr<uint8_t[]>> &vector);
   QAicContext *context_;
   QAicConstants *constants_;
   std::vector<QAicProgram *> programs_;
@@ -117,19 +117,19 @@ private:
   QAicExecObjProperties_t execObjProperties_;
   QAicQueueProperties queueProperties_;
 
-  std::vector<std::vector<std::vector<QBuffer> > > inferenceBuffersList_;
+  std::vector<std::vector<std::vector<QBuffer>>> inferenceBuffersList_;
 
   // Per Activation Resources
   std::vector<QAicQueue *> queues_;
   std::vector<QAicEvent *> perQueueFinishEvents_;
-  std::vector<std::shared_ptr<ActivationSet> > shActivationSets_;
+  std::vector<std::shared_ptr<ActivationSet>> shActivationSets_;
   QBuffer constDescBuf_;
   QBuffer constBuf_;
   QBuffer networkDescBuf_;
   QBuffer progBuf_;
   QID dev_;
   std::vector<std::string> modelBasePaths_;
-  std::vector<std::unique_ptr<uint8_t[]> > inferenceBufferVector_;
+  std::vector<std::unique_ptr<uint8_t[]>> inferenceBufferVector_;
   uint32_t numActivations_;
   uint32_t numInferences_;
   uint32_t numThreadsPerQueue_;
@@ -146,6 +146,6 @@ private:
 
 }; // QAicInfApi
 
-} // namespace qaic_device
+} // namespace qaic_api
 
 #endif

@@ -10,8 +10,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -22,13 +22,12 @@
 // SOFTWARE.POSSIBILITY OF SUCH DAMAGE.
 //
 
+#include "kilt.h"
 
-#include "benchmark_impl.h"
-
+#include <iostream>
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <unistd.h>
-#include <iostream>
 
 #define SEPARATOR 102
 
@@ -96,10 +95,7 @@ public:
     samples.push_back(dummy);
     Sample *sample = &(samples[0].first);
 
-    enum State {
-      CONNECT,
-      SERVE
-    };
+    enum State { CONNECT, SERVE };
 
     static char uid_string[128];
     strcpy(uid_string, kil.UniqueServerID().c_str());

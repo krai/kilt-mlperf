@@ -49,7 +49,7 @@ static inline float fp32_from_bits(uint32_t w) {
   union {
     uint32_t as_bits;
     float as_value;
-  } fp32 = { w };
+  } fp32 = {w};
   return fp32.as_value;
 #endif
 }
@@ -66,7 +66,7 @@ static inline uint32_t fp32_to_bits(float f) {
   union {
     float as_value;
     uint32_t as_bits;
-  } fp32 = { f };
+  } fp32 = {f};
   return fp32.as_bits;
 #endif
 }
@@ -83,7 +83,7 @@ static inline double fp64_from_bits(uint64_t w) {
   union {
     uint64_t as_bits;
     double as_value;
-  } fp64 = { w };
+  } fp64 = {w};
   return fp64.as_value;
 #endif
 }
@@ -100,7 +100,7 @@ static inline uint64_t fp64_to_bits(double f) {
   union {
     double as_value;
     uint64_t as_bits;
-  } fp64 = { f };
+  } fp64 = {f};
   return fp64.as_bits;
 #endif
 }

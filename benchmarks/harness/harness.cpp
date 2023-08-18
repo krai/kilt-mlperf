@@ -10,8 +10,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -21,7 +21,6 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.POSSIBILITY OF SUCH DAMAGE.
 //
-
 
 #include "loadgen.h"
 
@@ -37,8 +36,8 @@ typedef mlperf::SystemUnderTest TestBase;
 #include "system_under_test.h"
 #include "test_settings.h"
 
-#include "benchmark_impl.h"
-#include "harness_config.h"
+#include "config/harness_config.h"
+#include "kilt.h"
 
 using namespace std;
 using namespace KRAI;
@@ -81,7 +80,7 @@ public:
   }
 
 private:
-  std::string _name{ "QAIC_SUT" };
+  std::string _name{"QAIC_SUT"};
   KILT *_kil;
   HarnessConfig *_cfg;
   long query_counter;
@@ -106,8 +105,8 @@ public:
     return _kil->SamplesInMemoryMax();
   }
 
-  void LoadSamplesToRam(const std::vector<mlperf::QuerySampleIndex> &samples)
-      override {
+  void LoadSamplesToRam(
+      const std::vector<mlperf::QuerySampleIndex> &samples) override {
     _kil->LoadNextBatch(
         const_cast<std::vector<mlperf::QuerySampleIndex> *>(&samples));
     return;
@@ -121,7 +120,7 @@ public:
   }
 
 private:
-  std::string _name{ "QAIC_QSL" };
+  std::string _name{"QAIC_QSL"};
   KILT *_kil;
   HarnessConfig *_cfg;
 };
@@ -146,26 +145,21 @@ void Test(KILT *kil, HarnessConfig *cfg) {
   mlperf::TestSettings ts;
 
   // This should have been done automatically inside ts.FromConfig() !
-  ts.scenario = (scenario_string == "SingleStream")
-                    ? mlperf::TestScenario::SingleStream
-                    : (scenario_string == "MultiStream")
-                          ? mlperf::TestScenario::MultiStream
-                          : (scenario_string == "Server")
-                                ? mlperf::TestScenario::Server
-                                : (scenario_string == "Offline")
-                                      ? mlperf::TestScenario::Offline
-                                      : mlperf::TestScenario::SingleStream;
+  ts.scenario =
+      (scenario_string == "SingleStream")  ? mlperf::TestScenario::SingleStream
+      : (scenario_string == "MultiStream") ? mlperf::TestScenario::MultiStream
+      : (scenario_string == "Server")      ? mlperf::TestScenario::Server
+      : (scenario_string == "Offline")     ? mlperf::TestScenario::Offline
+                                           : mlperf::TestScenario::SingleStream;
 
   if (mode_string != "")
-    ts.mode = (mode_string == "SubmissionRun")
-                  ? mlperf::TestMode::SubmissionRun
-                  : (mode_string == "AccuracyOnly")
-                        ? mlperf::TestMode::AccuracyOnly
-                        : (mode_string == "PerformanceOnly")
-                              ? mlperf::TestMode::PerformanceOnly
-                              : (mode_string == "FindPeakPerformance")
-                                    ? mlperf::TestMode::FindPeakPerformance
-                                    : mlperf::TestMode::SubmissionRun;
+    ts.mode = (mode_string == "SubmissionRun") ? mlperf::TestMode::SubmissionRun
+              : (mode_string == "AccuracyOnly") ? mlperf::TestMode::AccuracyOnly
+              : (mode_string == "PerformanceOnly")
+                  ? mlperf::TestMode::PerformanceOnly
+              : (mode_string == "FindPeakPerformance")
+                  ? mlperf::TestMode::FindPeakPerformance
+                  : mlperf::TestMode::SubmissionRun;
 
   if (ts.FromConfig(mlperf_conf_path, model_name, scenario_string)) {
     std::cout << "Issue with mlperf.conf file at " << mlperf_conf_path
@@ -209,8 +203,7 @@ int main(int argc, char *argv[]) {
     Test(kil, cfg);
     delete kil;
     delete cfg;
-  }
-  catch (const string &error_message) {
+  } catch (const string &error_message) {
     cerr << "ERROR: " << error_message << endl;
     return -1;
   }

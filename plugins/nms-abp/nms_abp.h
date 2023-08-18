@@ -10,8 +10,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -22,14 +22,13 @@
 // SOFTWARE.POSSIBILITY OF SUCH DAMAGE.
 //
 
-
+#include <algorithm>
+#include <assert.h>
+#include <fstream>
 #include <iostream>
 #include <math.h>
-#include <fstream>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <assert.h>
-#include <algorithm>
+#include <sys/types.h>
 
 #include "nms_abp_config.h"
 
@@ -49,9 +48,7 @@ public:
     if (modelParams.PREPROCESS_PRIOR)
       preprocessPrior();
   }
-  ~NMS_ABP() {
-    delete priorTensor;
-  };
+  ~NMS_ABP() { delete priorTensor; };
   void preprocessPrior() {
 
     for (uint32_t i = 0; i < modelParams.TOTAL_NUM_BOXES; i++) {
@@ -125,18 +122,17 @@ public:
           continue;
         // if (!above_Class_Threshold(confidence)) continue;
         float cf = get_Score_Val(confidence);
-        bbox cBox = { get_Loc_Val(locPtr[modelParams.BOX_ITR_0]),
-                      get_Loc_Val(locPtr[modelParams.BOX_ITR_1]),
-                      get_Loc_Val(locPtr[modelParams.BOX_ITR_2]),
-                      get_Loc_Val(locPtr[modelParams.BOX_ITR_3]) };
+        bbox cBox = {get_Loc_Val(locPtr[modelParams.BOX_ITR_0]),
+                     get_Loc_Val(locPtr[modelParams.BOX_ITR_1]),
+                     get_Loc_Val(locPtr[modelParams.BOX_ITR_2]),
+                     get_Loc_Val(locPtr[modelParams.BOX_ITR_3])};
         if (modelParams.variance.data() != NULL)
           cBox =
               decodeLocationTensor(cBox, priorPtr, modelParams.variance.data());
         else
           cBox = decodeLocationTensor(cBox, priorPtr);
-        result.emplace_back(
-            std::initializer_list<float>{ idx,     cBox[1], cBox[0],  cBox[3],
-                                          cBox[2], cf,      (float)ci });
+        result.emplace_back(std::initializer_list<float>{
+            idx, cBox[1], cBox[0], cBox[3], cBox[2], cf, (float)ci});
       }
 
       if (result.size()) {
@@ -157,16 +153,15 @@ public:
         if (!above_Class_Threshold(confidence))
           continue;
         float cf = get_Score_Val(confidence);
-        bbox cBox = { get_Loc_Val(locPtr[0]), get_Loc_Val(locPtr[1]),
-                      get_Loc_Val(locPtr[2]), get_Loc_Val(locPtr[3]) };
+        bbox cBox = {get_Loc_Val(locPtr[0]), get_Loc_Val(locPtr[1]),
+                     get_Loc_Val(locPtr[2]), get_Loc_Val(locPtr[3])};
         if (modelParams.variance.data() != NULL)
           cBox =
               decodeLocationTensor(cBox, priorPtr, modelParams.variance.data());
         else
           cBox = decodeLocationTensor(cBox, priorPtr);
-        result[ci].emplace_back(
-            std::initializer_list<float>{ idx,     cBox[1], cBox[0],  cBox[3],
-                                          cBox[2], cf,      (float)ci });
+        result[ci].emplace_back(std::initializer_list<float>{
+            idx, cBox[1], cBox[0], cBox[3], cBox[2], cf, (float)ci});
       }
     }
 
@@ -180,13 +175,13 @@ public:
     }
 #endif
     int middle = selectedAll.size();
-    if (middle > modelParams.MAX_DETECTIONS_PER_IMAGE) {
-      middle = modelParams.MAX_DETECTIONS_PER_IMAGE;
+    if (middle > modelParams.KILT_MODEL_NMS_MAX_DETECTIONS_PER_IMAGE) {
+      middle = modelParams.KILT_MODEL_NMS_MAX_DETECTIONS_PER_IMAGE;
     }
     std::partial_sort(selectedAll.begin(), selectedAll.begin() + middle,
                       selectedAll.end(), [](const bbox &a, const bbox &b) {
-      return a[SCORE_POSITION] > b[SCORE_POSITION];
-    });
+                        return a[SCORE_POSITION] > b[SCORE_POSITION];
+                      });
   }
 
 #if defined(MODEL_RX50)
@@ -208,8 +203,8 @@ public:
       for (uint32_t bi = 0; bi < modelParams.OUTPUT_BOXES_PER_LEVEL;
            ++bi, locPtr += 4) {
 
-        bbox cBox = { get_Loc_Val(locPtr[0]), get_Loc_Val(locPtr[1]),
-                      get_Loc_Val(locPtr[2]), get_Loc_Val(locPtr[3]) };
+        bbox cBox = {get_Loc_Val(locPtr[0]), get_Loc_Val(locPtr[1]),
+                     get_Loc_Val(locPtr[2]), get_Loc_Val(locPtr[3])};
 
         uint32_t cls = (uint32_t)topkTensor[gi][bi] % modelParams.NUM_CLASSES;
         uint32_t off = prior_offset +
@@ -224,9 +219,8 @@ public:
         else
           cBox = decodeLocationTensor(cBox, &priorTensor[off * 4]);
 
-        result[cls].emplace_back(
-            std::initializer_list<float>{ idx,     cBox[1], cBox[0],   cBox[3],
-                                          cBox[2], cf,      (float)cls });
+        result[cls].emplace_back(std::initializer_list<float>{
+            idx, cBox[1], cBox[0], cBox[3], cBox[2], cf, (float)cls});
       }
     }
 
@@ -240,13 +234,13 @@ public:
     }
 
     int middle = selectedAll.size();
-    if (middle > modelParams.MAX_DETECTIONS_PER_IMAGE) {
-      middle = modelParams.MAX_DETECTIONS_PER_IMAGE;
+    if (middle > modelParams.KILT_MODEL_NMS_MAX_DETECTIONS_PER_IMAGE) {
+      middle = modelParams.KILT_MODEL_NMS_MAX_DETECTIONS_PER_IMAGE;
     }
     std::partial_sort(selectedAll.begin(), selectedAll.begin() + middle,
                       selectedAll.end(), [](const bbox &a, const bbox &b) {
-      return a[SCORE_POSITION] > b[SCORE_POSITION];
-    });
+                        return a[SCORE_POSITION] > b[SCORE_POSITION];
+                      });
 
     for (uint32_t b = 0; b < selectedAll.size(); ++b) {
       postproc(selectedAll[b][1]);
@@ -310,7 +304,7 @@ public:
     w += x;
     h += y;
 
-    return { x, y, w, h };
+    return {x, y, w, h};
   }
 
 #if defined(MODEL_RX50)
@@ -332,7 +326,7 @@ public:
     float pred_h = expf(dh) * h;
 
     return {(pred_cent_x - 0.5f * pred_w), (pred_cent_y - 0.5f * pred_h),
-            (pred_cent_x + 0.5f * pred_w), (pred_cent_y + 0.5f * pred_h) };
+            (pred_cent_x + 0.5f * pred_w), (pred_cent_y + 0.5f * pred_h)};
   }
 #else
   bbox decodeLocationTensor(const bbox &loc, const float *const prior) {
@@ -352,14 +346,14 @@ public:
     float pred_w = expf(dw) * w;
     float pred_h = expf(dh) * h;
 
-    return { pred_cent_x - 0.5f * pred_w, pred_cent_y - 0.5f * pred_h,
-             pred_cent_x + 0.5f * pred_w, pred_cent_y + 0.5f * pred_h };
+    return {pred_cent_x - 0.5f * pred_w, pred_cent_y - 0.5f * pred_h,
+            pred_cent_x + 0.5f * pred_w, pred_cent_y + 0.5f * pred_h};
   }
 #endif
 
   template <typename A, typename B>
   void pack(const std::vector<A> &part1, const std::vector<B> &part2,
-            std::vector<std::pair<A, B> > &packed) {
+            std::vector<std::pair<A, B>> &packed) {
     assert(part1.size() == part2.size());
     for (size_t i = 0; i < part1.size(); i++) {
       packed.push_back(std::make_pair(part1[i], part2[i]));
@@ -367,8 +361,8 @@ public:
   }
 
   template <typename A, typename B>
-  void unpack(const std::vector<std::pair<A, B> > &packed,
-              std::vector<A> &part1, std::vector<B> &part2) {
+  void unpack(const std::vector<std::pair<A, B>> &packed, std::vector<A> &part1,
+              std::vector<B> &part2) {
     for (size_t i = 0; i < part1.size(); i++) {
       part1[i] = packed[i].first;
       part2[i] = packed[i].second;
@@ -402,8 +396,8 @@ public:
     return IOU;
   }
 
-  void insertSelected(std::vector<std::vector<float> > &selected,
-                      std::vector<std::vector<float> > &selectedAll,
+  void insertSelected(std::vector<std::vector<float>> &selected,
+                      std::vector<std::vector<float>> &selectedAll,
                       std::vector<float> &cand, const float &thres,
                       std::vector<float> &classmap) {
     for (int i = 0; i < selected.size(); i++) {
@@ -418,10 +412,10 @@ public:
     selectedAll.push_back(cand);
   }
 
-  void NMS(std::vector<std::vector<float> > &boxes, const float &thres,
+  void NMS(std::vector<std::vector<float>> &boxes, const float &thres,
            const int &max_output_size,
-           std::vector<std::vector<float> > &selected,
-           std::vector<std::vector<float> > &selectedAll,
+           std::vector<std::vector<float>> &selected,
+           std::vector<std::vector<float>> &selectedAll,
            std::vector<float> &classmap) {
 
     std::sort(std::begin(boxes), std::end(boxes),

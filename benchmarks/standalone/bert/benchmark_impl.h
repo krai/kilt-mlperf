@@ -10,8 +10,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -22,24 +22,20 @@
 // SOFTWARE.POSSIBILITY OF SUCH DAMAGE.
 //
 
-
 #ifndef BENCHMARK_IMPL_H
 #define BENCHMARK_IMPL_H
 
 #include <stdio.h>
 #include <stdlib.h>
 
-#include "benchmark_config.h"
-#include "kilt_config.h"
-#include "device_config.h"
+#include "config/benchmark_config.h"
 
 #include "loadgen.h"
 #include "query_sample_library.h"
 
 typedef std::pair<mlperf::QuerySample, int> SizedSample;
 
-#include "kilt.h"
-#include "device.h"
+#include "kilt_impl.h"
 
 #include "pack.h"
 
@@ -52,7 +48,7 @@ class BertModel : public IModel {
 public:
   BertModel(const IConfig *config) : _config(config) {
 
-    distilbert = _config->device_cfg->getInputCount() == 3;
+    distilbert = _config->model_cfg->getInputCount() == 3;
   }
 
   virtual void
@@ -62,16 +58,18 @@ public:
     std::vector<SizedSample> sm =
         *(reinterpret_cast<const std::vector<SizedSample> *>(samples));
 
-    unsigned int dataset_seq_len = static_cast<SquadDataSourceConfig *>(
-        _config->datasource_cfg)->getDataSourceSequenceLength();
-    unsigned int packed_seq_len = static_cast<BertModelConfig *>(
-        _config->model_cfg)->getModelSequenceLength();
+    unsigned int dataset_seq_len =
+        static_cast<SquadDataSourceConfig *>(_config->datasource_cfg)
+            ->getDataSourceSequenceLength();
+    unsigned int packed_seq_len =
+        static_cast<BertModelConfig *>(_config->model_cfg)
+            ->getModelSequenceLength();
 
     // get the sizes of each of the inputs
     for (int s = 0; s < sm.size(); ++s) {
 
       // get the input mask
-      uint64_t *src = static_cast<uint64_t *>(
+      TInputDataType *src = static_cast<TInputDataType *>(
           data_source->getSamplePtr(sm[s].first.index, 1));
 
       int sum = 0;
@@ -81,7 +79,7 @@ public:
       sm[s].second = sum;
     }
 
-    std::vector<std::vector<SizedSample> > packed_samples;
+    std::vector<std::vector<SizedSample>> packed_samples;
 
     pack(sm, packed_seq_len, 3, packed_samples);
 
@@ -92,10 +90,17 @@ public:
 
   void configureWorkload(IDataSource *data_source, const void *samples,
                          std::vector<void *> &in_ptrs) override {
-    if (distilbert)
-      configureWorkloadDistilBERT(data_source, samples, in_ptrs);
-    else
+
+    BertModelConfig::BERT_MODEL_VARIANT bmv =
+        static_cast<BertModelConfig *>(_config->model_cfg)->getModelVariant();
+
+    // TODO: convert this to a function pointer.
+    if (bmv == BertModelConfig::BERT_ORIG)
       configureWorkloadOrig(data_source, samples, in_ptrs);
+    else if (bmv == BertModelConfig::BERT_PACKED)
+      configureWorkloadPacked(data_source, samples, in_ptrs);
+    else // if (bmv == BertModelConfig::DISTILBERT_PACKED)
+      configureWorkloadDistilBERTPacked(data_source, samples, in_ptrs);
   }
 
   void configureWorkloadOrig(IDataSource *data_source, const void *samples,
@@ -107,8 +112,45 @@ public:
     sample_count += sm->size();
     sample_delta += sm->size();
 
-    unsigned int packed_seq_len = static_cast<BertModelConfig *>(
-        _config->model_cfg)->getModelSequenceLength();
+    unsigned int packed_seq_len =
+        static_cast<BertModelConfig *>(_config->model_cfg)
+            ->getModelSequenceLength();
+
+    packed_seq_len = 384;
+
+    // clear input buffers
+    memset(in_ptrs[0], 0, packed_seq_len * sizeof(TInputDataType));
+    memset(in_ptrs[1], 0, packed_seq_len * sizeof(TInputDataType));
+    memset(in_ptrs[2], 0, packed_seq_len * sizeof(TInputDataType));
+
+    TInputDataType *src0 = static_cast<TInputDataType *>(
+        data_source->getSamplePtr((*sm)[0].first.index, 0));
+    TInputDataType *src1 = static_cast<TInputDataType *>(
+        data_source->getSamplePtr((*sm)[0].first.index, 1));
+    TInputDataType *src2 = static_cast<TInputDataType *>(
+        data_source->getSamplePtr((*sm)[0].first.index, 2));
+
+    TInputDataType sample_seq_len = (*sm)[0].second;
+
+    for (int m = 0; m < sample_seq_len; m++) {
+      static_cast<TInputDataType *>(in_ptrs[0])[m] = src0[m];
+      static_cast<TInputDataType *>(in_ptrs[1])[m] = src1[m];
+      static_cast<TInputDataType *>(in_ptrs[2])[m] = src2[m];
+    }
+  }
+
+  void configureWorkloadPacked(IDataSource *data_source, const void *samples,
+                               std::vector<void *> &in_ptrs) {
+
+    const std::vector<SizedSample> *sm =
+        reinterpret_cast<const std::vector<SizedSample> *>(samples);
+
+    sample_count += sm->size();
+    sample_delta += sm->size();
+
+    unsigned int packed_seq_len =
+        static_cast<BertModelConfig *>(_config->model_cfg)
+            ->getModelSequenceLength();
 
     // clear input buffers
     memset(in_ptrs[0], 0, packed_seq_len * sizeof(TInputDataType));
@@ -120,9 +162,9 @@ public:
 
     for (int s = 0; s < sm->size(); ++s) {
 
-      uint64_t *src0 = static_cast<uint64_t *>(
+      TInputDataType *src0 = static_cast<TInputDataType *>(
           data_source->getSamplePtr((*sm)[s].first.index, 0));
-      uint64_t *src2 = static_cast<uint64_t *>(
+      TInputDataType *src2 = static_cast<TInputDataType *>(
           data_source->getSamplePtr((*sm)[s].first.index, 2));
 
       TInputDataType sample_seq_len = (*sm)[s].second;
@@ -138,9 +180,9 @@ public:
     }
   }
 
-  void configureWorkloadDistilBERT(IDataSource *data_source,
-                                   const void *samples,
-                                   std::vector<void *> &in_ptrs) {
+  void configureWorkloadDistilBERTPacked(IDataSource *data_source,
+                                         const void *samples,
+                                         std::vector<void *> &in_ptrs) {
 
     const std::vector<SizedSample> *sm =
         reinterpret_cast<const std::vector<SizedSample> *>(samples);
@@ -148,8 +190,9 @@ public:
     sample_count += sm->size();
     sample_delta += sm->size();
 
-    unsigned int packed_seq_len = static_cast<BertModelConfig *>(
-        _config->model_cfg)->getModelSequenceLength();
+    unsigned int packed_seq_len =
+        static_cast<BertModelConfig *>(_config->model_cfg)
+            ->getModelSequenceLength();
 
     // clear input buffers
     memset(in_ptrs[0], 0, packed_seq_len * sizeof(TInputDataType));
@@ -161,7 +204,7 @@ public:
 
     for (int s = 0; s < sm->size(); ++s) {
 
-      uint64_t *src0 = static_cast<uint64_t *>(
+      TInputDataType *src0 = static_cast<TInputDataType *>(
           data_source->getSamplePtr((*sm)[s].first.index, 0));
 
       TInputDataType sample_seq_len = (*sm)[s].second;
@@ -184,13 +227,14 @@ public:
 
     sample_count -= sm->size();
 
-    unsigned int seq_len = static_cast<SquadDataSourceConfig *>(
-        _config->datasource_cfg)->getDataSourceSequenceLength();
+    unsigned int seq_len =
+        static_cast<SquadDataSourceConfig *>(_config->datasource_cfg)
+            ->getDataSourceSequenceLength();
 
     std::vector<mlperf::QuerySampleResponse> responses;
     responses.reserve(sm->size());
 
-    std::vector<std::vector<float> > results;
+    std::vector<std::vector<float>> results;
     results.resize(sm->size());
 
     int offset = 0;
@@ -209,7 +253,7 @@ public:
       offset += sample_seq_len;
 
       responses.push_back({(*sm)[i].first.id, uintptr_t(&results[i][0]),
-                           sizeof(float) * results[i].size() });
+                           sizeof(float) * results[i].size()});
     }
 
     mlperf::QuerySamplesComplete(responses.data(), responses.size());
@@ -218,8 +262,9 @@ public:
 private:
   void apply_mask(TInputDataType *ptr, int seq_len, int offset) {
 
-    unsigned int packed_seq_len = static_cast<BertModelConfig *>(
-        _config->model_cfg)->getModelSequenceLength();
+    unsigned int packed_seq_len =
+        static_cast<BertModelConfig *>(_config->model_cfg)
+            ->getModelSequenceLength();
 
     // add the y offset
     ptr += offset * packed_seq_len;
@@ -245,10 +290,19 @@ private:
 
 IModel *modelConstruct(IConfig *config) {
 
-  if (config->device_cfg->getSkipStage() != "convert")
+  if (config->model_cfg->getInputDatatype(0) == IModelConfig::IO_TYPE::UINT64)
     return new BertModel<uint64_t, float>(config);
-  else
+  else if (config->model_cfg->getInputDatatype(0) ==
+           IModelConfig::IO_TYPE::INT64)
+    return new BertModel<int64_t, float>(config);
+  else if (config->model_cfg->getInputDatatype(0) ==
+           IModelConfig::IO_TYPE::UINT32)
     return new BertModel<uint32_t, uint8_t>(config);
+  else if (config->model_cfg->getInputDatatype(0) ==
+           IModelConfig::IO_TYPE::INT32)
+    return new BertModel<int32_t, float>(config);
+  else
+    throw "Invalid data type for model construct";
 }
 
 template <typename TInputDataType> class BertDataSource : public IDataSource {
@@ -262,53 +316,15 @@ public:
 
     SquadDataSourceConfig *datasource_config =
         static_cast<SquadDataSourceConfig *>(_config->datasource_cfg);
-    // load the input_ids
-    {
-      std::ifstream file(datasource_config->getInputIDs(),
-                         std::ios::in | std::ios::binary);
-      if (!file)
-        throw "Failed to open input_ids file " +
-            datasource_config->getInputIDs();
 
-      file.seekg(0, std::ios::end);
-      int size = file.tellg();
-      file.seekg(0, std::ios::beg);
-      _input_ids.resize(size / (sizeof(uint64_t)));
-      file.read(reinterpret_cast<char *>(&_input_ids[0]), size);
-      file.close();
-    }
+    // load the input_ids
+    loadVector(datasource_config->getInputIDs(), _input_ids);
 
     // load the input_masks
-    {
-      std::ifstream file(datasource_config->getInputMask(),
-                         std::ios::in | std::ios::binary);
-      if (!file)
-        throw "Failed to open input_mask file " +
-            datasource_config->getInputMask();
-
-      file.seekg(0, std::ios::end);
-      int size = file.tellg();
-      file.seekg(0, std::ios::beg);
-      _input_mask.resize(size / (sizeof(uint64_t)));
-      file.read(reinterpret_cast<char *>(&_input_mask[0]), size);
-      file.close();
-    }
+    loadVector(datasource_config->getInputMask(), _input_mask);
 
     // load the segment_ids
-    {
-      std::ifstream file(datasource_config->getSegmentIDs(),
-                         std::ios::in | std::ios::binary);
-      if (!file)
-        throw "Failed to open segment_ids file " +
-            datasource_config->getSegmentIDs();
-
-      file.seekg(0, std::ios::end);
-      int size = file.tellg();
-      file.seekg(0, std::ios::beg);
-      _segment_ids.resize(size / (sizeof(uint64_t)));
-      file.read(reinterpret_cast<char *>(&_segment_ids[0]), size);
-      file.close();
-    }
+    loadVector(datasource_config->getSegmentIDs(), _segment_ids);
   }
 
   void unloadSamples(void *user) override {}
@@ -340,19 +356,50 @@ public:
   };
 
 private:
+  void loadVector(std::string src_path, std::vector<TInputDataType> &vector) {
+    std::ifstream file(src_path, std::ios::in | std::ios::binary);
+    if (!file)
+      throw "Failed to open the file at " + src_path;
+    file.seekg(0, std::ios::end);
+    int size = file.tellg();
+    file.seekg(0, std::ios::beg);
+
+    using rawDataType = uint64_t;
+    int vector_size = size / (sizeof(rawDataType));
+
+    std::vector<rawDataType> _raw_data;
+    _raw_data.resize(vector_size);
+    file.read(reinterpret_cast<char *>(&_raw_data[0]), size);
+    file.close();
+
+    vector.resize(vector_size);
+    for (int i = 0; i < vector_size; ++i) {
+      vector[i] = static_cast<TInputDataType>(_raw_data[i]);
+    }
+  }
+
   const IConfig *_config;
 
-  std::vector<int64_t> _input_ids;
-  std::vector<int64_t> _input_mask;
-  std::vector<int64_t> _segment_ids;
+  std::vector<TInputDataType> _input_ids;
+  std::vector<TInputDataType> _input_mask;
+  std::vector<TInputDataType> _segment_ids;
 };
 
 IDataSource *dataSourceConstruct(IConfig *config, std::vector<int> affinities) {
 
-  if (config->device_cfg->getSkipStage() != "convert")
+  if (config->model_cfg->getInputDatatype(0) == IModelConfig::IO_TYPE::UINT64)
     return new BertDataSource<uint64_t>(config, affinities);
-  else
+  else if (config->model_cfg->getInputDatatype(0) ==
+           IModelConfig::IO_TYPE::INT64)
+    return new BertDataSource<int64_t>(config, affinities);
+  else if (config->model_cfg->getInputDatatype(0) ==
+           IModelConfig::IO_TYPE::UINT32)
     return new BertDataSource<uint32_t>(config, affinities);
+  else if (config->model_cfg->getInputDatatype(0) ==
+           IModelConfig::IO_TYPE::INT32)
+    return new BertDataSource<int32_t>(config, affinities);
+  else
+    throw "Invalid data type for datasource construct";
 }
 
 class KILT : public KraiInferenceLibrary<SizedSample> {

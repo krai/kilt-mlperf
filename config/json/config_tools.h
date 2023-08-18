@@ -10,8 +10,8 @@
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
 //
-// The above copyright notice and this permission notice shall be included in all
-// copies or substantial portions of the Software.
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
@@ -22,11 +22,12 @@
 // SOFTWARE.POSSIBILITY OF SUCH DAMAGE.
 //
 
-
 #ifndef CONFIG_JSON_TOOLS_H
 #define CONFIG_JSON_TOOLS_H
 
 #include "cJSON.h"
+#include "kilt_translate.h"
+#include "string"
 
 static cJSON *cjson_object = nullptr;
 
@@ -41,7 +42,12 @@ char *load_json_file(char *filename) {
     fseek(f, 0, SEEK_SET);
     buffer = malloc(length);
     if (buffer) {
-      fread(buffer, 1, length, f);
+      size_t bytes_read = fread(buffer, 1, length, f);
+      if (bytes_read != length) {
+        free(buffer);
+        throw std::runtime_error("Cannot read from the file " +
+                                 std::string(filename));
+      }
     }
     fclose(f);
   }
@@ -71,11 +77,21 @@ cJSON *getjSON() {
 
 const char *getconfig(const char *name) {
 
-  cJSON *j = cJSON_GetObjectItemCaseSensitive(getjSON(), name);
+  static std::string config_str;
+
+  cJSON *j = cJSON_GetObjectItemCaseSensitive(
+      getjSON(), TranslationTable::getTranslation(name).c_str());
 
   if (cJSON_IsString(j) && (j->valuestring != NULL)) {
     std::cout << "CFG: " << name << " = " << j->valuestring << std::endl;
     return j->valuestring;
+  } else if (cJSON_IsNumber(j)) {
+    std::cout << "CFG: " << name << " = " << j->valueint << std::endl;
+    config_str = std::to_string(j->valueint);
+    return config_str.c_str();
+  } else if (cJSON_IsBool(j)) {
+    std::cout << "CFG: " << name << " = " << j->valueint << std::endl;
+    return (j->valueint ? "true" : "false");
   }
   return nullptr;
 }
@@ -102,6 +118,18 @@ inline std::string getenv_opt_s(const std::string &name,
     return std::string(value);
 }
 
+inline bool getenv_opt_b(const std::string &name, bool default_value) {
+
+  const char *value = getenv_c(name.c_str());
+  if (!value)
+    return default_value;
+  else {
+    return (!strcmp(value, "YES") || !strcmp(value, "yes") ||
+            !strcmp(value, "ON") || !strcmp(value, "on") ||
+            !strcmp(value, "1") || !strcmp(value, "true"));
+  }
+}
+
 /// Load mandatory integer value from the environment.
 inline int getenv_i(const std::string &name) {
   const char *value = getconfig(name.c_str());
@@ -123,7 +151,7 @@ inline bool getenv_b(const char *name) {
   std::string value = getconfig(name);
 
   return (value == "YES" || value == "yes" || value == "ON" || value == "on" ||
-          value == "1");
+          value == "true" || value == "1");
 }
 
 inline std::string alter_str(std::string a, std::string b) {
@@ -132,9 +160,7 @@ inline std::string alter_str(std::string a, std::string b) {
 inline std::string alter_str(char *a, std::string b) {
   return a != nullptr ? a : b;
 };
-inline std::string alter_str(char *a, char *b) {
-  return a != nullptr ? a : b;
-};
+inline std::string alter_str(char *a, char *b) { return a != nullptr ? a : b; };
 inline int alter_str_i(char *a, int b) {
   return a != nullptr ? std::atoi(a) : b;
 };
