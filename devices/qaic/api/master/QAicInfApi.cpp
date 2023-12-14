@@ -488,13 +488,13 @@ QStatus QAicInfApi::init(QID qid, QAicEventCallback callback,
     ioDescProto.ParseFromArray(ioDescQData.data, ioDescQData.size);
     if (!entryPoint_.empty() && entryPoint_.compare("default") != 0) {
       for (auto &io_set : ioDescProto.io_sets()) {
-        if (io_set.name().compare(entryPoint_) == 0) {
+        if (io_set.name().find(entryPoint_) != std::string::npos) {
           ioDescProto.clear_selected_set();
           ioDescProto.mutable_selected_set()->CopyFrom(io_set);
           break;
         }
       }
-      if (ioDescProto.selected_set().name().compare(entryPoint_) != 0) {
+      if (ioDescProto.selected_set().name().find(entryPoint_) == std::string::npos) {
         std::cerr << "Failed to match name in iodesc" << std::endl;
         return QS_ERROR;
       }
