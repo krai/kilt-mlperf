@@ -519,7 +519,7 @@ QStatus QAicInfApi::init(QID qid, QAicEventCallback callback,
       ioDescQData.data = nullptr;
       ioDescQData.size = 0;
     }
-#if 0
+#ifdef PRINT_NETWORK_DESCRIPTOR
     {
       google::protobuf::util::JsonPrintOptions jsonPrintOption;
       jsonPrintOption.add_whitespace = true;
