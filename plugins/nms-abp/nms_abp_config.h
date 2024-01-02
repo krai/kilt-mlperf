@@ -139,10 +139,18 @@ public:
   const int OUTPUT_BOXES_PER_LEVEL = 1000;
   const int OUTPUT_DELTAS[5] = {0, 90000, 22500, 5625, 1521};
 
+#ifndef LOC_OFFSET
   const float LOC_OFFSET = 25.0f;
+#endif
+#ifndef LOC_SCALE
   const float LOC_SCALE = 0.01684683f;
+#endif
+#ifndef CONF_OFFSET
   const float CONF_OFFSET = -128.0f;
+#endif
+#ifndef CONF_SCALE
   const float CONF_SCALE = 0.00388179976f;
+#endif
 
   const float CLASS_THRESHOLD = 0.05f;
   const int CLASS_THRESHOLD_UINT8 = 5;
