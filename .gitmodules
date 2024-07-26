@@ -1,0 +1,3 @@
+[submodule "tools/tools/kilt-tracer"]
+	path = tools/tools/kilt-tracer
+	url = https://github.com/krai/kilt-tracer.git
